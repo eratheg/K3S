@@ -2,14 +2,14 @@
 # From master
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm search repo ingress-nginx --versions
-
+--- helm fix
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 kubectl get pods --all-namespaces
 helm ls --all-namespaces
 kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get pods --all-namespaces
 helm --kubeconfig /etc/rancher/k3s/k3s.yaml ls --all-namespaces
+----------------------------------------------------------------------------------------------------------------------------
 helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx   --namespace ingress-nginx --create-namespace
-### Printout
 Release "ingress-nginx" does not exist. Installing it now.
 level=WARN msg="unable to find exact version; falling back to closest available version" chart=ingress-nginx requested="" selected=4.14.0
 NAME: ingress-nginx
@@ -43,7 +43,7 @@ An example Ingress that makes use of the controller:
                   port:
                     number: 80
               path: /
-    # This section is only required if TLS is to be enabled for the Ingress
+    ----- This section is only required if TLS is to be enabled for the Ingress
     tls:
       - hosts:
         - www.example.com
@@ -61,3 +61,26 @@ If TLS is enabled for the Ingress, a Secret containing the certificate and key m
     tls.key: <base64 encoded key>
   type: kubernetes.io/tls
 
+----------------------------------------------------------------------------------------------------------------------------
+kubectl get po -A
+NAMESPACE       NAME                                        READY   STATUS    RESTARTS   AGE
+ingress-nginx   ingress-nginx-controller-6f449f6b9d-qr9m7   1/1     Running   0          15m
+kube-system     coredns-64fd4b4794-txzvh                    1/1     Running   0          5d3h
+kube-system     metrics-server-7bfffcd44-krzbt              1/1     Running   0          5d3h
+kubectl get po -n ingress-nginx
+NAME                                        READY   STATUS    RESTARTS   AGE
+ingress-nginx-controller-6f449f6b9d-qr9m7   1/1     Running   0          16m
+
+helm ls -A
+NAME         	NAMESPACE    	REVISION	UPDATED                                	STATUS  	CHART               	APP VERSION
+ingress-nginx	ingress-nginx	1       	2025-11-29 12:06:33.737775436 +0100 CET	deployed	ingress-nginx-4.14.0	1.14.0     
+----------------------------------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------
