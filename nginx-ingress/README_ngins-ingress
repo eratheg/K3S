@@ -8,7 +8,8 @@ helm ls --all-namespaces
 kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get pods --all-namespaces
 helm --kubeconfig /etc/rancher/k3s/k3s.yaml ls --all-namespaces
 ----------------------------------------------------------------------------------------------------------------------------
-helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx   --namespace ingress-nginx --create-namespace
+#helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx   --namespace ingress-nginx --create-namespace
+helm install nginx-ingress --create-namespace -n nginx-ingress ingress-nginx/ingress-nginx --set "controller.extraArgs.enable-ssl-passthrough=true"
 Release "ingress-nginx" does not exist. Installing it now.
 level=WARN msg="unable to find exact version; falling back to closest available version" chart=ingress-nginx requested="" selected=4.14.0
 NAME: ingress-nginx
