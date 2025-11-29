@@ -1,0 +1,14 @@
+
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm search repo ingress-nginx --versions
+CHART_VERSION="4.14.0"
+APP_VERSION="1.14.0"
+
+mkdir ./kubernetes/ingress/controller/nginx/manifests/
+
+helm template ingress-nginx ingress-nginx \
+--repo https://kubernetes.github.io/ingress-nginx \
+--version ${CHART_VERSION} \
+--namespace ingress-nginx \
+> /home/eratheg/Desktop/TBS/RPI/K3S/nginx-ingress/manifests/nginx-ingress.${APP_VERSION}.yaml
+
