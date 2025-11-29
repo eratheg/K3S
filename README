@@ -1,1 +1,6 @@
-test
+1. Install metallb
+kubectl create -f metalb.yaml
+
+2. Install nginx-ingress
+Follow readme
+
