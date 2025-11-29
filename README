@@ -1,4 +1,5 @@
 1. Install metallb
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.5/config/manifests/metallb-native.yaml
 kubectl create -f metalb.yaml
 (https://docs.mirantis.com/mke/3.7/install/install-metallb-for-kubernetes.html)
 
