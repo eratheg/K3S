@@ -9,6 +9,8 @@ helm install nginx-ingress --create-namespace -n nginx-ingress ingress-nginx/ing
 
 3. Install service-nginx-test
 kubectl apply -f service-nginx-test.yaml
+kubectl delete validatingwebhookconfigurations nginx-ingress-ingress-nginx-admission
+kubectl apply -f service-nginx-test-ingress.yaml
 
 Uninstall:
 kubectl get deployment -A
