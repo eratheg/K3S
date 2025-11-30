@@ -4,13 +4,13 @@ metadata:
   name: service-nginx-test
 data:
   path-a.html: |
-    "/path-a.html" on service-a
+    "/path-a.html" on service-nginx-test
   path-b.html: |
-    "/path-b.html" on service-a
+    "/path-b.html" on service-nginx-test
   index.html: |
-    "/" on service-a  
+    "/" on service-nginx-test  
   404.html: |
-    nginx-test 404 page
+    service-nginx-test 404 page
 ---
 apiVersion: v1
 kind: ConfigMap
