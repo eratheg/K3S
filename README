@@ -5,6 +5,7 @@ kubectl create -f metalb.yaml
 
 2. Install nginx-ingress
 Follow readme
+helm install nginx-ingress --create-namespace -n nginx-ingress ingress-nginx/ingress-nginx --set "controller.extraArgs.enable-ssl-passthrough=true"
 
 3. Uninstall:
 kubectl get deployment -A
