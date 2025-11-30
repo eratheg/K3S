@@ -6,3 +6,18 @@ kubectl create -f metalb.yaml
 2. Install nginx-ingress
 Follow readme
 
+3. Uninstall:
+kubectl get deployment -A
+kubectl delete deployment nginx-ingress-ingress-nginx-controller -n nginx-ingress
+kubectl delete deployment controller -n metallb-system
+kubectl get deployment -A
+
+kubectl get po,svc,IPAddressPools,daemonsets -A -o wide
+kubectl delete svc nginx-ingress-ingress-nginx-controller-admission -n nginx-ingress 
+kubectl delete svc nginx-ingress-ingress-nginx-controller -n nginx-ingress
+kubectl delete daemonset speaker -n metallb-system
+kubectl delete IPAddressPool k3s-lb-pool -n metallb-system
+kubectl delete svc metallb-webhook-service -n metallb-system
+kubectl delete ns nginx-ingress
+kubectl delete ns metallb-system
+kubectl get po,svc,IPAddressPools,daemonsets -A -o wide
