@@ -8,7 +8,7 @@ data:
   path-b.html: |
     "/path-b.html" on service-nginx-test
   index.html: |
-    "/" on service-nginx-test  
+    "/" on service-nginx-test manamana
   404.html: |
     service-nginx-test 404 page
 ---
