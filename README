@@ -1,3 +1,305 @@
+## BASE
+#motd
+cat <<'EOF' >> ~/.bashrc
+a=$(cat /proc/cpuinfo|grep Model|awk -F ': ' {'print$2'})
+b=$(free -h|grep Mem| awk -F ' ' {'print$2'})
+c=$(lscpu|grep name|awk -F ' ' {'print$3'})
+d=$(lscpu|grep max|awk -F ' ' {'print$4'})
+e=$(lscpu|grep "^CPU(s):"|awk -F ' ' {'print$2'})
+f=$(df -h|grep -v firmware|grep mm|awk -F ' ' {'print$5'})
+g=$(df -h|grep -v firmware|grep mm|awk -F ' ' {'print$2'})
+echo "$a (RAM:$b, CPU:$c($e)@ $d MHz), DISK:$g(use:$f)"
+
+EOF
+
+#history file 
+sed -i "s/HISTSIZE=.*/HISTSIZE=5000/g" ~/.bashrc
+sed -i "s/HISTFILESIZE=.*/HISTFILESIZE=5000/g" ~/.bashrc
+echo "set nocp" >> ~/.vimrc
+sudo -i
+echo "HISTSIZE=5000" >> ~/.bashrc
+echo "HISTFILESIZE=5000" >> ~/.bashrc
+echo 'export HISTTIMEFORMAT="%d-%m-%y %T  "' >> /etc/profile
+echo "set nocp" >> ~/.vimrc
+
+#vi /etc/hosts
+eratheg@seos-rac-w01:~ $ ssh eratheg@10.0.91.4 cat /etc/hosts
+127.0.0.1	localhost
+::1		localhost ip6-localhost ip6-loopback
+ff02::1		ip6-allnodes
+ff02::2		ip6-allrouters
+
+10.0.91.4       seos-rns-w1
+10.0.91.5       seos-rrc-m1
+10.0.91.7       seos-rbl-w2
+10.0.91.9       seos-pc1.shd
+10.0.91.10      seos-wea
+10.0.91.12      seos-rlm-w3
+10.0.91.22      seos-rws-w4
+213.191.117.77  czka
+
+#ssh config
+Host seos-wea
+   Hostname 10.0.91.10
+   User pi
+
+#### fix backdoor psw
+sudo passwd root
+--------------------------------------------------------------
+#K3S COMMON
+cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+br_netfilter
+EOF
+  
+cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf    
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+cat /etc/modules-load.d/k8s.conf 
+cat /etc/sysctl.d/k8s.conf 
+sudo sysctl --system
+
+sudo vi /boot/cmdline.txt
+#Add to end of line:
+cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory
+
+sudo swapoff -a
+sudo vi /etc/dphys-swapfile
+  CONF_SWAPSIZE=0
+
+cd /etc/
+sudo mkdir rancher
+cd rancher/
+sudo mkdir k3s
+sudo vi /etc/rancher/k3s/kubelet.config
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+shutdownGracePeriod: 30s
+shutdownGracePeriodCriticalPods: 10s
+
+sudo systemd-inhibit --list
+
+#K3S Master
+#curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --disable=traefik --flannel-backend=host-gw --tls-san=192.168.1.85 --bind-address=192.168.1.85 --advertise-address=192.168.1.85 --node-ip=192.168.1.85 --cluster-init" sh -s -
+curl -sfL https://get.k3s.io | K3S_TOKEN=manamana sh -s - server --write-kubeconfig-mode '0644' --node-taint 'node-role.kubernetes.io/control-plane:NoSchedule' --disable 'servicelb' --disable 'traefik' --disable 'local-storage' --kube-controller-manager-arg 'bind-address=0.0.0.0' --kube-proxy-arg 'metrics-bind-address=0.0.0.0' --kube-scheduler-arg 'bind-address=0.0.0.0' --kubelet-arg 'config=/etc/rancher/k3s/kubelet.config' --kube-controller-manager-arg 'terminated-pod-gc-threshold=10'
+#curl -sfL https://get.k3s.io | K3S_TOKEN=manamana sh -s - server --write-kubeconfig-mode '0644' --node-taint 'node-role.kubernetes.io/master=true:NoSchedule' --disable 'servicelb' --disable 'traefik' --disable 'local-path' --kube-controller-manager-arg 'bind-address=0.0.0.0' --kube-proxy-arg 'metrics-bind-address=0.0.0.0' --kube-scheduler-arg 'bind-address=0.0.0.0' --kubelet-arg 'config=/etc/rancher/k3s/kubelet.config' --kube-controller-manager-arg 'terminated-pod-gc-threshold=10'
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4
+#curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+sudo apt-get install apt-transport-https --yes
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+sudo apt-get update
+sudo apt-get install helm
+mkdir $HOME/.kube
+cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/.
+
+#K3S Worker
+sudo mkdir /etc/rancher/k3s
+sudo ls -l /etc/rancher/
+sudo chown -R eratheg:eratheg /etc/rancher/
+sudo vi /etc/rancher/k3s/kubelet.config
+    apiVersion: kubelet.config.k8s.io/v1beta1
+    kind: KubeletConfiguration
+    shutdownGracePeriod: 30s
+    shutdownGracePeriodCriticalPods: 10s
+
+curl -sfL https://get.k3s.io | K3S_URL='https://10.0.91.5:6443' K3S_TOKEN=manamana sh -s - --node-label 'node_type=worker' --kubelet-arg 'config=/etc/rancher/k3s/kubelet.config' --kube-proxy-arg 'metrics-bind-address=0.0.0.0'
+sudo journalctl -f -u k3s-agent.service
+
+#Label node
+kubectl label nodes seos-rbl-w2 kubernetes.io/role=worker
+kubectl label nodes seos-rlm-w3 kubernetes.io/role=worker
+kubectl label nodes seos-rns-w1 kubernetes.io/role=worker
+kubectl label nodes seos-rws-w4 kubernetes.io/role=worker
+
+
+#Delete node
+kubectl get nodes
+kubectl drain seos-nas-w02
+#kubectl drain seos-nas-w02 --ignore-daemonsets --delete-local-data
+kubectl delete node seos-nas-w02
+
+------------------------------------------------------------------------------------------------------------
+To uninstall K3s from a server node, run:
+/usr/local/bin/k3s-uninstall.sh
+
+To uninstall K3s from an agent node, run:
+/usr/local/bin/k3s-agent-uninstall.sh
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+kubectl api-resources
+kubectl get nodes -o wide
+kubectl cluster-info
+kubectl top nodes
+kubectl describe nodes
+
+cat <<' EOF' > /tmp/usage
+ #!/bin/bash
+ set -e
+ KUBECTL="kubectl"
+ NODES=$($KUBECTL get nodes --no-headers -o custom-columns=NAME:.metadata.name)
+
+ function usage() {
+	local node_count=0
+	local total_percent_cpu=0
+	local total_percent_mem=0
+	local readonly nodes=$@
+
+	for n in $nodes; do
+		local requests=$($KUBECTL describe node $n | grep -A2 -E "CPU Requests" | tail -n1)
+		local percent_cpu=$(echo $requests | awk -F "[()%]" '{print $2}')
+		local percent_mem=$(echo $requests | awk -F "[()%]" '{print $8}')
+		echo "$n: ${percent_cpu}% CPU, ${percent_mem}% memory"
+
+		node_count=$((node_count + 1))
+		total_percent_cpu=$((total_percent_cpu + percent_cpu))
+		total_percent_mem=$((total_percent_mem + percent_mem))
+	done
+
+	local readonly avg_percent_cpu=$((total_percent_cpu / node_count))
+	local readonly avg_percent_mem=$((total_percent_mem / node_count))
+
+	echo "Average usage: ${avg_percent_cpu}% CPU, ${avg_percent_mem}% memory."
+ }
+ usage $NODES
+ EOF
+ chmod +x /tmp/usage
+ sudo mv /tmp/usage /usr/bin/k3util
+
+kubectl top pod -A
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+sudo vi /etc/profile
+export KUBECONFIG=~/.kube/config
+
+#k3s The connection to the server localhost:8080 was refused - did you specify the right host or port? This problem is likely caused by a bad ~/.kube/config perhaps you have a file from a different kubernetes install (minikube) or an older k3s. If the server is local you can fix this by running these commands,
+mkdir ~/.kube
+sudo k3s kubectl config view --raw | tee ~/.kube/config
+chmod 600 ~/.kube/config
+
+
+#if WARN[0000] Unable to read /etc/rancher/k3s/k3s.yaml, please start server with --write-kubeconfig-mode to modify kube config permissions error: error loading config file "/etc/rancher/k3s/k3s.yaml": open /etc/rancher/k3s/k3s.yaml: permission denied
+curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
+
+
+
+
+######## Uninstalling Servers
+To uninstall K3s from a server node, run:
+/usr/local/bin/k3s-uninstall.sh
+
+To uninstall K3s from an agent node, run:
+/usr/local/bin/k3s-agent-uninstall.sh
+
+--------------------------------------------------------------
+#basics
+curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+sudo curl https://sh.rustup.rs -sSf | sh
+
+sudo apt install lm-sensors -y
+sudo apt install tree -y
+sudo apt install netcat-traditional -y 
+sudo apt install speedtest-cli -y 
+sudo apt install cargo -y
+exit
+
+#dutree
+
+cargo install --git https://github.com/nachoparker/dutree.git
+
+#enviro+
+git clone https://github.com/pimoroni/enviroplus-python
+cd enviroplus-python
+sudo ./install-bullseye.sh
+sudo ./install.sh
+### LCD issue
+cd /usr/lib/python3.11
+cat EXTERNALLY-MANAGED
+sudo rm EXTERNALLY-MANAGED
+pip3 install ST7735
+sudo apt install python3-numpy
+pip3 install fonts font-roboto
+pip freeze
+pip install pms5003==0.0.5
+pip install st7735==0.0.5 
+pip install ST7735==0.0.5
+
+
+#weatherstation
+wget http://bit.ly/Makerlife-PiZeroW-Weatherstation
+
+#aliases for rac
+alias czwea="watch 'cat /var/log/env_metrics.log|grep czka-we|tail -n25;cat /var/log/env_metrics.log|grep STATS_C|tail -n25'"
+alias sewea="watch 'cat /var/log/env_metrics.log|grep seos-we|tail -n25;cat /var/log/env_metrics.log|grep STATS_S|tail -n25'"
+alias czit='echo "***** Top score... *****";cat /var/log/env_metrics.log|grep czka-rp3|sort -r -k 6|tail -n40;echo;echo "***** LATEST *****";cat /var/log/env_metrics.log|grep czka-rp3|tail -n40'
+alias wstat='watch '\''echo CZECH;cat /var/log/env_metrics.log|grep STATS_C|tail -n25;echo SWEDEN; cat /var/log/env_metrics.log|grep STATS_S|tail -n25'\'''
+
+-------------------------------------------------------------
+#Libcamera + rtsp stream
+libcamera-hello
+sudo apt update && sudo apt -y full-upgrade
+sudo apt install -y libcamera-apps
+sudo apt install -y vlc
+sudo sed -i 's/geteuid/getppid/' /usr/bin/vlc
+libcamera-hello --list-cameras
+
+The output could resemble, depending on your hardware;
+
+Available cameras
+-----------------
+0 : ov5647 [2592x1944] (/base/soc/i2c0mux/i2c@1/ov5647@36)
+    Modes: 'SGBRG10_CSI2P' : 640x480 [30.00 fps - (0, 0)/0x0 crop]
+                             1296x972 [30.00 fps - (0, 0)/0x0 crop]
+                             1920x1080 [30.00 fps - (0, 0)/0x0 crop]
+                             2592x1944 [30.00 fps - (0, 0)/0x0 crop]
+
+sudo vi ~/stream.sh
+
+#!/bin/bash
+libcamera-vid -t 0 --inline --width 1920 --height 1080 --framerate 15 -o - | cvlc -vvv stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554/stream}' :demux=h264
+
+sudo chmod +x /home/pi/stream.sh
+sudo vi /lib/systemd/system/stream.service
+
+[Unit]
+Description=Custom Webcam Streaming Service
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/eratheg/shed/stream.sh
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
+
+sudo chmod 644 /lib/systemd/system/stream.service
+sudo systemctl enable stream.service
+sudo service stream start
+sudo service stream status
+
+-------------------------------------------------------------
+#motioneye
+apt-get install ffmpeg libmariadb3 libpq5 libmicrohttpd12 -y
+wget https://github.com/Motion-Project/motion/releases/download/release-4.3.2/pi_buster_motion_4.3.2-1_armhf.deb 
+dpkg -i pi_buster_motion_4.3.2-1_armhf.deb 
+systemctl stop motion
+systemctl disable motion
+apt-get install python2 python-dev-is-python2 -y
+curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
+python2 get-pip.py
+apt-get install libssl-dev libcurl4-openssl-dev libjpeg-dev zlib1g-dev -y
+pip2 install motioneye
+mkdir -p /etc/motioneye
+cp /usr/local/share/motioneye/extra/motioneye.conf.sample /etc/motioneye/motioneye.conf
+mkdir -p /var/lib/motioneye
+cp /usr/local/share/motioneye/extra/motioneye.systemd-unit-local /etc/systemd/system/motioneye.service
+systemctl daemon-reload
+systemctl enable motioneye
+systemctl start motioneye
+pip install motioneye --upgrade
+
+## END BASE
+
+
 1. Install metallb
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.5/config/manifests/metallb-native.yaml
 kubectl create -f metalb.yaml
