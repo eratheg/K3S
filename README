@@ -45,8 +45,120 @@ Host seos-wea
 
 #### fix backdoor psw
 sudo passwd root
---------------------------------------------------------------
-#K3S COMMON
+
+#basics
+curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+sudo curl https://sh.rustup.rs -sSf | sh
+
+sudo apt install lm-sensors -y
+sudo apt install tree -y
+sudo apt install netcat-traditional -y 
+sudo apt install speedtest-cli -y 
+sudo apt install cargo -y
+exit
+
+#dutree
+
+cargo install --git https://github.com/nachoparker/dutree.git
+-----ENVIRO+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#enviro+
+git clone https://github.com/pimoroni/enviroplus-python
+cd enviroplus-python
+sudo ./install-bullseye.sh
+sudo ./install.sh
+### LCD issue
+cd /usr/lib/python3.11
+cat EXTERNALLY-MANAGED
+sudo rm EXTERNALLY-MANAGED
+pip3 install ST7735
+sudo apt install python3-numpy
+pip3 install fonts font-roboto
+pip freeze
+pip install pms5003==0.0.5
+pip install st7735==0.0.5 
+pip install ST7735==0.0.5
+
+-----WEATHERSTATION---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#weatherstation
+wget http://bit.ly/Makerlife-PiZeroW-Weatherstation
+
+#aliases for rac
+alias czwea="watch 'cat /var/log/env_metrics.log|grep czka-we|tail -n25;cat /var/log/env_metrics.log|grep STATS_C|tail -n25'"
+alias sewea="watch 'cat /var/log/env_metrics.log|grep seos-we|tail -n25;cat /var/log/env_metrics.log|grep STATS_S|tail -n25'"
+alias czit='echo "***** Top score... *****";cat /var/log/env_metrics.log|grep czka-rp3|sort -r -k 6|tail -n40;echo;echo "***** LATEST *****";cat /var/log/env_metrics.log|grep czka-rp3|tail -n40'
+alias wstat='watch '\''echo CZECH;cat /var/log/env_metrics.log|grep STATS_C|tail -n25;echo SWEDEN; cat /var/log/env_metrics.log|grep STATS_S|tail -n25'\'''
+
+-----LIBCAMERA--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#Libcamera + rtsp stream
+libcamera-hello
+sudo apt update && sudo apt -y full-upgrade
+sudo apt install -y libcamera-apps
+sudo apt install -y vlc
+sudo sed -i 's/geteuid/getppid/' /usr/bin/vlc
+libcamera-hello --list-cameras
+
+The output could resemble, depending on your hardware;
+
+Available cameras
+-----------------
+0 : ov5647 [2592x1944] (/base/soc/i2c0mux/i2c@1/ov5647@36)
+    Modes: 'SGBRG10_CSI2P' : 640x480 [30.00 fps - (0, 0)/0x0 crop]
+                             1296x972 [30.00 fps - (0, 0)/0x0 crop]
+                             1920x1080 [30.00 fps - (0, 0)/0x0 crop]
+                             2592x1944 [30.00 fps - (0, 0)/0x0 crop]
+
+sudo vi ~/stream.sh
+
+#!/bin/bash
+libcamera-vid -t 0 --inline --width 1920 --height 1080 --framerate 15 -o - | cvlc -vvv stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554/stream}' :demux=h264
+
+sudo chmod +x /home/pi/stream.sh
+sudo vi /lib/systemd/system/stream.service
+
+[Unit]
+Description=Custom Webcam Streaming Service
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/eratheg/shed/stream.sh
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
+
+sudo chmod 644 /lib/systemd/system/stream.service
+sudo systemctl enable stream.service
+sudo service stream start
+sudo service stream status
+
+-----MOTIONEYE--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#motioneye
+apt-get install ffmpeg libmariadb3 libpq5 libmicrohttpd12 -y
+wget https://github.com/Motion-Project/motion/releases/download/release-4.3.2/pi_buster_motion_4.3.2-1_armhf.deb 
+dpkg -i pi_buster_motion_4.3.2-1_armhf.deb 
+systemctl stop motion
+systemctl disable motion
+apt-get install python2 python-dev-is-python2 -y
+curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
+python2 get-pip.py
+apt-get install libssl-dev libcurl4-openssl-dev libjpeg-dev zlib1g-dev -y
+pip2 install motioneye
+mkdir -p /etc/motioneye
+cp /usr/local/share/motioneye/extra/motioneye.conf.sample /etc/motioneye/motioneye.conf
+mkdir -p /var/lib/motioneye
+cp /usr/local/share/motioneye/extra/motioneye.systemd-unit-local /etc/systemd/system/motioneye.service
+systemctl daemon-reload
+systemctl enable motioneye
+systemctl start motioneye
+pip install motioneye --upgrade
+
+## END BASE
+==============================================================================================================================================================================================
+##K3S_INSTALL
 cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
 br_netfilter
 EOF
@@ -118,13 +230,8 @@ kubectl drain seos-nas-w02
 #kubectl drain seos-nas-w02 --ignore-daemonsets --delete-local-data
 kubectl delete node seos-nas-w02
 
-------------------------------------------------------------------------------------------------------------
-To uninstall K3s from a server node, run:
-/usr/local/bin/k3s-uninstall.sh
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-To uninstall K3s from an agent node, run:
-/usr/local/bin/k3s-agent-uninstall.sh
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 kubectl api-resources
 kubectl get nodes -o wide
 kubectl cluster-info
@@ -166,7 +273,7 @@ cat <<' EOF' > /tmp/usage
 
 kubectl top pod -A
 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 sudo vi /etc/profile
 export KUBECONFIG=~/.kube/config
 
@@ -179,127 +286,15 @@ chmod 600 ~/.kube/config
 #if WARN[0000] Unable to read /etc/rancher/k3s/k3s.yaml, please start server with --write-kubeconfig-mode to modify kube config permissions error: error loading config file "/etc/rancher/k3s/k3s.yaml": open /etc/rancher/k3s/k3s.yaml: permission denied
 curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
 
-
-
-
 ######## Uninstalling Servers
 To uninstall K3s from a server node, run:
 /usr/local/bin/k3s-uninstall.sh
 
 To uninstall K3s from an agent node, run:
 /usr/local/bin/k3s-agent-uninstall.sh
-
---------------------------------------------------------------
-#basics
-curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
-sudo curl https://sh.rustup.rs -sSf | sh
-
-sudo apt install lm-sensors -y
-sudo apt install tree -y
-sudo apt install netcat-traditional -y 
-sudo apt install speedtest-cli -y 
-sudo apt install cargo -y
-exit
-
-#dutree
-
-cargo install --git https://github.com/nachoparker/dutree.git
-
-#enviro+
-git clone https://github.com/pimoroni/enviroplus-python
-cd enviroplus-python
-sudo ./install-bullseye.sh
-sudo ./install.sh
-### LCD issue
-cd /usr/lib/python3.11
-cat EXTERNALLY-MANAGED
-sudo rm EXTERNALLY-MANAGED
-pip3 install ST7735
-sudo apt install python3-numpy
-pip3 install fonts font-roboto
-pip freeze
-pip install pms5003==0.0.5
-pip install st7735==0.0.5 
-pip install ST7735==0.0.5
-
-
-#weatherstation
-wget http://bit.ly/Makerlife-PiZeroW-Weatherstation
-
-#aliases for rac
-alias czwea="watch 'cat /var/log/env_metrics.log|grep czka-we|tail -n25;cat /var/log/env_metrics.log|grep STATS_C|tail -n25'"
-alias sewea="watch 'cat /var/log/env_metrics.log|grep seos-we|tail -n25;cat /var/log/env_metrics.log|grep STATS_S|tail -n25'"
-alias czit='echo "***** Top score... *****";cat /var/log/env_metrics.log|grep czka-rp3|sort -r -k 6|tail -n40;echo;echo "***** LATEST *****";cat /var/log/env_metrics.log|grep czka-rp3|tail -n40'
-alias wstat='watch '\''echo CZECH;cat /var/log/env_metrics.log|grep STATS_C|tail -n25;echo SWEDEN; cat /var/log/env_metrics.log|grep STATS_S|tail -n25'\'''
-
--------------------------------------------------------------
-#Libcamera + rtsp stream
-libcamera-hello
-sudo apt update && sudo apt -y full-upgrade
-sudo apt install -y libcamera-apps
-sudo apt install -y vlc
-sudo sed -i 's/geteuid/getppid/' /usr/bin/vlc
-libcamera-hello --list-cameras
-
-The output could resemble, depending on your hardware;
-
-Available cameras
------------------
-0 : ov5647 [2592x1944] (/base/soc/i2c0mux/i2c@1/ov5647@36)
-    Modes: 'SGBRG10_CSI2P' : 640x480 [30.00 fps - (0, 0)/0x0 crop]
-                             1296x972 [30.00 fps - (0, 0)/0x0 crop]
-                             1920x1080 [30.00 fps - (0, 0)/0x0 crop]
-                             2592x1944 [30.00 fps - (0, 0)/0x0 crop]
-
-sudo vi ~/stream.sh
-
-#!/bin/bash
-libcamera-vid -t 0 --inline --width 1920 --height 1080 --framerate 15 -o - | cvlc -vvv stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554/stream}' :demux=h264
-
-sudo chmod +x /home/pi/stream.sh
-sudo vi /lib/systemd/system/stream.service
-
-[Unit]
-Description=Custom Webcam Streaming Service
-After=multi-user.target
-
-[Service]
-Type=simple
-ExecStart=/home/eratheg/shed/stream.sh
-Restart=on-abort
-
-[Install]
-WantedBy=multi-user.target
-
-sudo chmod 644 /lib/systemd/system/stream.service
-sudo systemctl enable stream.service
-sudo service stream start
-sudo service stream status
-
--------------------------------------------------------------
-#motioneye
-apt-get install ffmpeg libmariadb3 libpq5 libmicrohttpd12 -y
-wget https://github.com/Motion-Project/motion/releases/download/release-4.3.2/pi_buster_motion_4.3.2-1_armhf.deb 
-dpkg -i pi_buster_motion_4.3.2-1_armhf.deb 
-systemctl stop motion
-systemctl disable motion
-apt-get install python2 python-dev-is-python2 -y
-curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-python2 get-pip.py
-apt-get install libssl-dev libcurl4-openssl-dev libjpeg-dev zlib1g-dev -y
-pip2 install motioneye
-mkdir -p /etc/motioneye
-cp /usr/local/share/motioneye/extra/motioneye.conf.sample /etc/motioneye/motioneye.conf
-mkdir -p /var/lib/motioneye
-cp /usr/local/share/motioneye/extra/motioneye.systemd-unit-local /etc/systemd/system/motioneye.service
-systemctl daemon-reload
-systemctl enable motioneye
-systemctl start motioneye
-pip install motioneye --upgrade
-
-## END BASE
-
-
+## END_K3S_INSTALL
+==============================================================================================================================================================================================
+## K3S_PROJECTS
 1. Install metallb
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.5/config/manifests/metallb-native.yaml
 kubectl create -f metalb.yaml
